@@ -12,7 +12,31 @@
 
 3、不用echo或者cat形式增删，直接传参。
 
-
+```
+[
+  { "cronTemplate": "0 0/3 * * * ?", "operation": "heartbeat" },
+  { "cronTemplate": "0 0/5 * * * ?", "operation": "gwstatus" },
+  { "cronTemplate": "0 0/30 * * * ?", "operation": "gatewayevents" },
+  { "cronTemplate": "0 0/30 * * * ?", "operation": "waterenergy" },
+  { "cronTemplate": "0 0/10 * * * ?", "operation": "wateralarms" },
+  { "cronTemplate": "0 0/10 * * * ?", "operation": "waterevents" },
+  { "cronTemplate": "0 0/20 * * * ?", "operation": "waterbilling" },
+  { "cronTemplate": "0 0/10 * * * ?", "operation": "alarms" },
+  { "cronTemplate": "0 0 * * * ?", "operation": "events" },
+  { "cronTemplate": "0 0/20 * * * ?", "operation": "energyprofile" },
+  { "cronTemplate": "0 0/30 * * * ?", "operation": "instantaneousprofile" },
+  { "cronTemplate": "0 0,25 * * * ?", "operation": "maxdemandprofile" },
+  { "cronTemplate": "0 0 * * * ?", "operation": "loadprofile1" },
+  { "cronTemplate": "0 0 * * * ?", "operation": "loadprofile2" },
+  { "cronTemplate": "0 0 * * * ?", "operation": "powerqualityprofile" },
+  { "cronTemplate": "0 0 * * * ?", "operation": "instrumentationprofile" },
+  { "cronTemplate": "0 1 * * * ?", "operation": "billingprofile" },
+  { "cronTemplate": "0 0 * * * ?", "operation": "InstantaneousSave" },
+  { "cronTemplate": "0 0 * * * ?", "operation": "EnergySave" },
+  { "cronTemplate": "0 0 0 * * ?", "operation": "MaxdemandSave" },
+  { "cronTemplate": "0 0 2 * * ?", "operation": "WaterSave" }
+]
+```
 
 cron下载地址：https://github.com/cvpcs/android_external_vixie-cron
 
@@ -62,6 +86,40 @@ sudo /home/book/Desktop/opensdk_release/fib_tools/gcc-4.9.4_thumb_linux/usr/bin/
 4.测试
 
 ```shell
+#write out current crontab
+crontab -l > mycron
+#echo new cron into cron file
+echo "* * * * * echo hello" >> mycron
+echo "00 09 * * 1-5 echo hello" >> mycron
+#install new cron file
+crontab mycron
+rm mycron
+
+crond -f -d
+crontab -d
+```
+
+
+
+```shell
+echo "00 09 * * 1-5 echo hello" >> mycron
+```
+
+![image-20230914095722731](pic/cron移植.assets/image-20230914095722731.png)
+
+```shell
+echo "0/2 * * * * echo hello2222" >> mycron
+```
+
+![image-20230914105220650](pic/cron移植.assets/image-20230914105220650.png)
+
+```shell
+echo "*/2 * * * * echo hello" >> mycron
+```
+
+![image-20230914105321690](pic/cron移植.assets/image-20230914105321690.png)
+
+```shell
 #修改rc文件后推送
 adb push E:\vmwareWork\cron_work\cron_transplant\cron_source\pull\rc /etc
 adb shell chmod 777 /etc/rc
@@ -104,100 +162,7 @@ crontab -d
 ```
 echo "01 * * * * echo hello" >> mycron
 
-fclose(stdin);
-	fclose(stdout);
 
-	i = open("/dev/null", O_RDWR);
-	if (i < 0) {
-		perror("open: /dev/null");
-		exit(1);
-	}
-	dup2(i, 0);
-	dup2(i, 1);
-
-	/* create tempdir with permissions 0755 for cron output */
-	TempDir = strdup(TMPDIR "/cron.XXXXXX");
-	if (mkdtemp(TempDir) == NULL) {
-		perror("mkdtemp");
-		exit(1);
-	}
-	if (chmod(TempDir, S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)) {
-		perror("chmod");
-		exit(1);
-	}
-	if (!(TempFileFmt = concat(TempDir, "/cron.%s.%d", NULL))) {
-		errno = ENOMEM;
-		perror("main");
-		exit(1);
-	}
-
-	if (ForegroundOpt == 0) {
-
-		int fd;
-		int pid;
-
-		if ((pid = fork()) < 0) {
-			/* fork failed */
-			perror("fork");
-			exit(1);
-		} else if (pid > 0) {
-			/* parent */
-			exit(0);
-		}
-		/* child continues */
-
-		/* become session leader, detach from terminal */
-
-		if (setsid() < 0)
-			perror("setsid");
-		if ((fd = open("/dev/tty", O_RDWR)) >= 0) {
-			ioctl(fd, TIOCNOTTY, 0);
-			close(fd);
-		}
-
-		/* setup logging for backgrounded daemons */
-
-		if (SyslogOpt) {
-			/* start SIGHUP and SIGCHLD handling while stderr still open */
-			initsignals();
-			/* 2> /dev/null */
-			fclose(stderr);
-			dup2(1, 2);
-
-			/* open syslog */
-			openlog(LOG_IDENT, LOG_CONS|LOG_PID, LOG_CRON);
-
-		} else {
-			/* open logfile */
-			if ((fd = open(LogFile, O_WRONLY|O_CREAT|O_APPEND, 0600)) >= 0) {
-				/* start SIGHUP ignoring, SIGCHLD handling while stderr still open */
-				initsignals();
-				/* 2> LogFile */
-				fclose(stderr);
-				dup2(fd, 2);
-			} else {
-				int n = errno;
-				fdprintf(2, "failed to open logfile '%s', reason: %s", LogFile, strerror(n));
-				exit(n);
-			}
-		}
-	} else {
-		/* daemon in foreground */
-
-		/* stay in existing session, but start a new process group */
-		if (setpgid(0,0)) {
-			perror("setpgid");
-			exit(1);
-		}
-
-		/* stderr stays open, start SIGHUP ignoring, SIGCHLD handling */
-		initsignals();
-	}
-
-	/* close all other fds, including the ones we opened as /dev/null and LogFile */
-	for (i = 3; i < MAXOPEN; ++i) {
-        close(i);
-    }
 ```
 
 

@@ -83,6 +83,9 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
     }
     memset(buf,'0',sizeof(buf));
     strcpy(buf,expression);
+	
+	printf( "Entry %s\n", buf);
+	
     char *ptr = buf;
     while (*ptr == ' ')
 		++ptr;
@@ -178,11 +181,13 @@ ParseField(char *ary, int modvalue, int offset, int onvalue, const char **names,
 	if (base == NULL)
 		return (NULL);
 
-	while (*ptr != ' ' && *ptr != '\0') {
+	while (*ptr != ' ' && *ptr != '\t' && *ptr != '\n') {
 		int skip = 0;
+
 		/*
 		 * Handle numeric digit or symbol or '*'
 		 */
+
 		if (*ptr == '*') {
 			n1 = 0;			/* everything will be filled */
 			n2 = modvalue - 1;
@@ -215,6 +220,11 @@ ParseField(char *ary, int modvalue, int offset, int onvalue, const char **names,
 		/*
 		 * handle optional range '-'
 		 */
+
+		if (skip == 0) {
+			printf("skip failed parsing crontab for user %s: %s\n", "zbl", base);
+			return(NULL);
+		}
 		if (*ptr == '-' && n2 < 0) {
 			++ptr;
 			continue;
@@ -251,6 +261,11 @@ ParseField(char *ary, int modvalue, int offset, int onvalue, const char **names,
 					s0 = skip;
 				}
 			} while (n1 != n2 && --failsafe);
+
+			if (failsafe == 0) {
+				printf("failsafe failed parsing crontab for user %s: %s\n", "zbl", base);
+				return(NULL);
+			}
 		}
 		if (*ptr != ',')
 			break;
@@ -258,6 +273,20 @@ ParseField(char *ary, int modvalue, int offset, int onvalue, const char **names,
 		n1 = -1;
 		n2 = -1;
 	}
+
+	
+
+	while (*ptr == ' ' || *ptr == '\t' || *ptr == '\n')
+		++ptr;
+
+
+		int i;
+		for (i = 0; i < modvalue; ++i)
+			if (modvalue == FIELD_W_DAYS)
+				printf("%2x ", ary[i]);
+			else
+				printf("%d", ary[i]);
+		printf("\n");
 
 	return(ptr);
 }

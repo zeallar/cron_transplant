@@ -37,12 +37,13 @@ cron_callback_unregister_all(void)
 
   for (sa_ptr = the_tasks; sa_ptr != NULL; sa_ptr = sa_tmp) {
     sa_tmp = sa_ptr->next;
+	free(sa_ptr->expr);
     free(sa_ptr);
   }
   the_tasks = NULL;
 }  
 unsigned int
-cron_callback_register(char* when,
+cron_callback_register(char* when,char* task_name,
                     CronCallback * thecallback, void *clientarg)
 {
     struct cron_task **s = NULL;
@@ -55,17 +56,18 @@ cron_callback_register(char* when,
     (*s)->clientarg = clientarg;
     (*s)->thecallback = thecallback;
     (*s)->clientreg = regnum++;
+	(*s)->cl_Pid = JOB_WAITING;
     (*s)->next = NULL;
+	(*s)->job_name=task_name;
     /*解析cronexpress*/
-    cron_expr expr_s;
+    cron_expr *expr_s = CRON_MALLOC_STRUCT(cron_expr);;
     const char* err = NULL;
-    cron_parse_expr((*s)->schedule, &expr_s, &err);
+    cron_parse_expr((*s)->schedule, expr_s, &err);
     if (err) {
         perror("error parsing cron expression:");
         return 1;
     }
-    (*s)->expr=&expr_s;
-    printf("cl_Mins11=%s \n",expr_s.cl_Mins);
+    (*s)->expr=expr_s;
 
     run_job_temp((*s));
 
@@ -94,6 +96,7 @@ int
 arm_job(time_t t1, time_t t2){
     short nJobs = 0;
     time_t t;
+	printf("arm_job()%s:%d\n", __FILE__, __LINE__);
     /*
 	 * Find jobs > t1 and <= t2
 	 */
@@ -113,16 +116,20 @@ arm_job(time_t t1, time_t t2){
 
             for (sa_ptr = the_tasks; sa_ptr != NULL; sa_ptr = sa_tmp) {
                 sa_tmp = sa_ptr->next;
-                /* (re)schedule job? */
-                cron_expr* line=(cron_expr*)sa_ptr->expr;
-                if (line->cl_Mins[tp->tm_min] &&
-                        line->cl_Hrs[tp->tm_hour] &&
-                        (line->cl_Days[tp->tm_mday] && n_wday & line->cl_Dow[tp->tm_wday])
-                    ) {
-                    nJobs ++;
-                    sa_ptr->cl_Pid=JOB_ARMED;
-                }
-                
+				if ((sa_ptr->cl_Pid == JOB_WAITING || sa_ptr->cl_Pid == JOB_NONE)) {
+		            /* (re)schedule job? */
+		            cron_expr* line=(cron_expr*)sa_ptr->expr;
+		            if (line->cl_Mins[tp->tm_min] &&
+		                    line->cl_Hrs[tp->tm_hour] &&
+		                    (line->cl_Days[tp->tm_mday] && n_wday & line->cl_Dow[tp->tm_wday])
+		                ) {
+		                //nJobs += preparation_job(sa_ptr, t1, t2);
+		                if (sa_ptr->cl_Pid != JOB_ARMED) {
+		                	sa_ptr->cl_Pid=JOB_ARMED;
+							nJobs ++;
+		                }
+		            }
+				}
             }
                 
             }
@@ -132,6 +139,17 @@ arm_job(time_t t1, time_t t2){
 
 }
 
+int preparation_job(cron_task_t* line, time_t t1, time_t t2){
+	printf("t2=%d,line->cl_Pid=%d \n",t2,line->cl_Pid);
+	if (t2 == -2 && line->cl_Pid != JOB_ARMED) {
+		line->cl_Pid = JOB_ARMED;
+		return 1;
+	}else if (line->cl_Pid == JOB_NONE) {
+		line->cl_Pid = JOB_ARMED;
+		return 1;
+	}
+	return 0;
+}
 void
 run_jobs(void){
     struct cron_task *sa_ptr, *sa_tmp;

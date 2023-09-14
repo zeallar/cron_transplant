@@ -15,13 +15,14 @@ modified date:
 #include <time.h>
 
 #include "crontasks.h"
-
 static unsigned int thid;
 void func(unsigned int clientreg,void *clientarg){ 
-    printf("This is func.\t  b = %s\n", (char*)(clientarg)); 
+	time_t t1=time(NULL) ;
+    printf("This is func.str = %s current time is %s \n", (char*)(clientarg),ctime(&t1)); 
 }
 void func2(unsigned int clientreg,void *clientarg){ 
-    printf("This is func2.\t  b = %s\n", (char*)(clientarg)); 
+	time_t t1 = time(NULL);
+    printf("This is func2.str = %s current time is %s \n", (char*)(clientarg),ctime(&t1)); 
 }
 
 void sig_handler(int signo) {
@@ -49,7 +50,7 @@ time_t t1 = time(NULL);
 
         t2 = time(NULL);
         dt = t2 - t1;
-
+		printf("Wakeup dt=%d\n", dt);
         if (dt < -60*60 || dt > 60*60) {
             t1 = t2;
         }else if (dt > 0) {
@@ -70,7 +71,9 @@ int main(int argc, char *argv[]) {
     pthread_create(&th_crond, NULL, crond, NULL); 
     pthread_detach(th_crond);
 
-    thid=cron_callback_register("01 * * * *",func, "aaa");
-    thid=cron_callback_register("02 * * * *",func2, "bbb");
+
+    thid=cron_callback_register("* * * * *","task1",func, "aaa");
+    thid=cron_callback_register("*/2 * * * *","task2",func2, "bbb");
     while(1);
+	return EXIT_SUCCESS;
 }

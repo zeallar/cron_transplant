@@ -6,6 +6,7 @@ typedef void    (CronCallback) (unsigned int clientreg,
 #define JOB_ARMED       -1
 #define JOB_WAITING     -2
 #define CRON_MALLOC_STRUCT(s)   (struct s *) calloc(1, sizeof(struct s))
+
 typedef struct cron_task {
         char*            schedule;/*执行时间，cron表达式*/
         char*             job_name;/*任务名称*/   
@@ -19,7 +20,7 @@ typedef struct cron_task {
     }cron_task_t;
 
 unsigned int 
-cron_callback_register(char* when,
+cron_callback_register(char* when,char* task_name,
                     CronCallback * thecallback, void *clientarg);
 void cron_callback_unregister(unsigned int clientreg);
 int nap(cron_task_t *job);
@@ -39,6 +40,8 @@ arm_job(time_t t1, time_t t2);
 /*1、读取所有需要执行的任务
  *2、执行任务
 */
+int preparation_job(cron_task_t* sa_ptr, time_t t1, time_t t2);
+
 void
 run_jobs(void);
 

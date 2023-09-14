@@ -14,7 +14,7 @@
 #define FIFTH_DOW  (1 << 4)
 #define LAST_DOW   (1 << 5)
 #define ALL_DOW    (FIRST_DOW|SECOND_DOW|THIRD_DOW|FOURTH_DOW|FIFTH_DOW|LAST_DOW)
-typedef struct {
+typedef struct cron_expr{
     char	cl_Mins[FIELD_MINUTES];	/* 0-59				*/
     char	cl_Hrs[FIELD_HOURS];	/* 0-23					*/
     char	cl_Days[FIELD_M_DAYS];	/* 1-31					*/
