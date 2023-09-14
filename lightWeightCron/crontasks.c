@@ -139,17 +139,6 @@ arm_job(time_t t1, time_t t2){
 
 }
 
-int preparation_job(cron_task_t* line, time_t t1, time_t t2){
-	printf("t2=%d,line->cl_Pid=%d \n",t2,line->cl_Pid);
-	if (t2 == -2 && line->cl_Pid != JOB_ARMED) {
-		line->cl_Pid = JOB_ARMED;
-		return 1;
-	}else if (line->cl_Pid == JOB_NONE) {
-		line->cl_Pid = JOB_ARMED;
-		return 1;
-	}
-	return 0;
-}
 void
 run_jobs(void){
     struct cron_task *sa_ptr, *sa_tmp;

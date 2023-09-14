@@ -40,7 +40,6 @@ arm_job(time_t t1, time_t t2);
 /*1、读取所有需要执行的任务
  *2、执行任务
 */
-int preparation_job(cron_task_t* sa_ptr, time_t t1, time_t t2);
 
 void
 run_jobs(void);

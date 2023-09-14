@@ -46,6 +46,11 @@ time_t t1 = time(NULL);
     short stime = 60;
 
     for (;;) {
+		//1、如果有秒级任务，
+		//2、每秒刷新一次。
+		//3、这个样做没意义，还是用秒级库，看看能不能做裁剪
+		//4、调度机制还是这种，1分钟只能去执行等待，并运行任务。
+		//5、18k那个
         sleep((stime + 1) - (short)(time(NULL) % stime));
 
         t2 = time(NULL);
@@ -70,7 +75,6 @@ int main(int argc, char *argv[]) {
     pthread_t th_crond;
     pthread_create(&th_crond, NULL, crond, NULL); 
     pthread_detach(th_crond);
-
 
     thid=cron_callback_register("* * * * *","task1",func, "aaa");
     thid=cron_callback_register("*/2 * * * *","task2",func2, "bbb");
