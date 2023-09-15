@@ -115,6 +115,8 @@ echo "0/2 * * * * echo hello2222" >> mycron
 
 ```shell
 echo "*/2 * * * * echo hello" >> mycron
+./crontab mycron
+./crontab -l
 ```
 
 ![image-20230914105321690](pic/cron移植.assets/image-20230914105321690.png)
@@ -218,6 +220,12 @@ CFLAGS + = -Wextra -std=c89 -s -Os -ffunction-sections -fdata-sections -Wl,--gc-
 ```
 
 
+
+
+
+***************************************************************
+
+![image-20230915094929558](pic/cron移植.assets/image-20230915094929558.png)
 
 ## 参考文章：
 
