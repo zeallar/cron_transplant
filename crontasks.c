@@ -7,11 +7,10 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <setjmp.h>
 
 #include "ccronexpr.h"
 #include "crontasks.h"
-
-//#include "timeout_wrapper.h"
 
 static unsigned int regnum = 1;
 static struct cron_task *the_tasks = NULL;
@@ -26,8 +25,7 @@ struct timers
 };
 
 static struct timers cron_timer;
-
-volatile int invoke_timeout = 0;
+sigjmp_buf invoke_env;
 
 
 void
@@ -95,31 +93,38 @@ cron_task_register(char* when,char* task_name,
 	updateNextTrigger((*s));
 	return (*s)->clientreg;
 }
-struct cron_task *sa_ptr_global, *sa_tmp_global;
+
 int  arm_jobs(void){
 	short nJobs = 0;
+	struct cron_task *sa_ptr_global, *sa_tmp_global;
 	for (sa_ptr_global = the_tasks; sa_ptr_global != NULL; sa_ptr_global = sa_tmp_global) {
-		time_t current_time = time(NULL);
+		volatile time_t current_time = time(NULL);
 		//printf("current_time=%d,nextTrigger=%d,arm_jobs =%s\n",current_time,sa_ptr->nextTrigger,sa_ptr->job_name);
 		if(sa_ptr_global->nextTrigger<=current_time&&sa_ptr_global->cl_Pid!=JOB_ARMED){
 			sa_ptr_global->cl_Pid=JOB_ARMED;
 			//printf("arm_jobs =%s \n",sa_ptr->job_name);
 			nJobs+=1;
+			if (sigsetjmp(invoke_env, SIGALRM)) {
+				goto jump;
+			}else{
+				printf("sigsetjmp register\n");
+			}
 			cron_set_timer(sa_ptr_global->timeout,sa_ptr_global);
 			run_job(sa_ptr_global);
 			cron_stop_timer();
 		}
 		sa_tmp_global = sa_ptr_global->next;
-	}
+		jump:
+			sa_tmp_global = sa_ptr_global->next;
+		
+	}	
 	return nJobs;
 }
 
+
 void sighandler(int signum)
 {
-	if(signum==SIGUSR1){
-		printf("Pthread of cron stop singal.\n");
-		pthread_exit(0);
-	}else if(signum==SIGALRM){
+	if(signum==SIGALRM){
 		printf("\n---");
 		if(cron_timer.interval>0){
 			cron_timer.interval--;
@@ -132,33 +137,48 @@ void sighandler(int signum)
 }
 void timeout_handler(cron_task_t *s){
 	if(s){
-		//longjmp(invoke_env, 1);//goto next task;
-		invoke_timeout=1
+		printf("timeout: thread(%lx) call sig_handler\n", pthread_self(),cron_timer.interval);
 		printf("%s timeout,todo something\n",s->job_name);
-	}
+		s->timeout_record=time(NULL);//record timeout time 
+		siglongjmp(invoke_env, 1);//goto next task;
+		}
 }
-void *crond(){
+void* crond(){
+	one_timer.it_interval.tv_sec=1; //设置单位定时器定时时间
+	one_timer.it_value.tv_sec=1; //设置单位定时器初始值
+	setitimer(ITIMER_REAL,&one_timer,NULL); //初始化单位定时器
+	my_signal(SIGALRM,sighandler);//指定单位定时器定时时间到时执行的函数
+	
 	for (;;) {
 		sleep(1);
 		printf("wakeup\n");
 		fflush(stdout);
+		
 		arm_jobs();
 	}
 }
+void 
+my_signal(int signo, void *func)
+{
+    struct sigaction act;
 
-void cron_run(){
-	one_timer.it_interval.tv_sec=1; //设置单位定时器定时时间
-    one_timer.it_value.tv_sec=1; //设置单位定时器初始值
-    setitimer(ITIMER_REAL,&one_timer,NULL); //初始化单位定时器
-    signal(SIGALRM,sighandler); //指定单位定时器定时时间到时执行的函数
-	
-	signal(SIGUSR1, sighandler);
-    pthread_create(&th_crond, NULL, crond, NULL); 
-    pthread_detach(th_crond);
+    act.sa_handler = func;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = 0;
+    sigaction(signo, &act, NULL);
+ 
 }
 
-void cron_stop(void){
-	int rc = pthread_kill(th_crond, SIGUSR1);
+void cron_run(){
+   int err = 0;
+	pthread_t th;
+	/*以分离状态启动子线程*/
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    if((err = pthread_create(&th, &attr, crond, NULL) != 0)){
+        perror("pthread_create error");
+    }
 }
 
 int run_job(void   * param)
@@ -175,13 +195,7 @@ int run_job(void   * param)
 	}
 	return 0;
 }
-void globalUpdateNextTrigger(void){
-	struct cron_task *sa_ptr, *sa_tmp;
-	for (sa_ptr = the_tasks; sa_ptr != NULL; sa_ptr = sa_tmp) {
-		updateNextTrigger(sa_ptr);
-		sa_tmp = sa_ptr->next;
-	}
-}
+
 void updateNextTrigger(cron_task_t* task){
 	time_t current_time = time(NULL);
     time_t next_run;
@@ -206,40 +220,3 @@ static int cron_set_timer(unsigned long timeout,cron_task_t *s)
 	cron_timer.data=s;
 	return 0;
 }
-
-/*timeout experiment*/
-sigjmp_buf invoke_env;
-
-void 
-timeout_signal_handler(int sig) 
-{
-	if(sig==SIGALRM){
-		invoke_count++;
-    	siglongjmp(invoke_env, 1);
-	}else if(sig==SIGUSR2){
-		printf("超时操作");
-	}
-}
-
-sigfunc *
-my_signal(int signo, sigfunc *func)
-{
-    struct sigaction act, oact;
-
-    act.sa_handler = func;
-    sigemptyset(&act.sa_mask);
-    act.sa_flags = 0;
-    if (signo == SIGALRM) {
-#ifdef SA_INTERRUPT
-        act.sa_flags |= SA_INTERRUPT;
-#endif
-    } else {
-#ifdef SA_RESTART
-        act.sa_flags |= SA_RESTART;
-#endif
-    }
-    if (sigaction(signo, &act, &oact) < 0)
-        return SIG_ERR;
-    return oact.sa_handler;
-}
-
