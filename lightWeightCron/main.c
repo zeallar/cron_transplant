@@ -2,7 +2,7 @@
 Author:zhouBL
 Version:
 Description:
-Others:
+Others:1、任务超时功能;2、日志记录执行任务执行结果;3、50个以上任务测试。
 created date:2023/9/9 2:32 下午
 modified date:
 *************************************************/
@@ -15,69 +15,36 @@ modified date:
 #include <time.h>
 
 #include "crontasks.h"
-static unsigned int thid;
+#include "timeout_wrapper.h"
+
 void func(unsigned int clientreg,void *clientarg){ 
 	time_t t1=time(NULL) ;
     printf("This is func.str = %s current time is %s \n", (char*)(clientarg),ctime(&t1)); 
 }
 void func2(unsigned int clientreg,void *clientarg){ 
 	time_t t1 = time(NULL);
+	sleep(2);
     printf("This is func2.str = %s current time is %s \n", (char*)(clientarg),ctime(&t1)); 
 }
 
+
 void sig_handler(int signo) {
     if (signo == SIGINT) {
-        cron_callback_unregister_all();
+        cron_task_unregister_all();
+		cron_stop();
         _exit(0);
     }
 }
-// int main(int argc, char *argv[]) {
-//     signal(SIGINT, sig_handler);
-//     thid=cron_callback_register("01 * * * *",func, "aaa");
-//     thid=cron_callback_register("02 * * * *",func2, "bbb");
-//     while(1);
-//     return EXIT_SUCCESS;
-// }
-
-void *crond(){
-time_t t1 = time(NULL);
-    time_t t2;
-    long dt;
-    short stime = 60;
-
-    for (;;) {
-		//1、如果有秒级任务，
-		//2、每秒刷新一次。
-		//3、这个样做没意义，还是用秒级库，看看能不能做裁剪
-		//4、调度机制还是这种，1分钟只能去执行等待，并运行任务。
-		//5、18k那个
-        sleep((stime + 1) - (short)(time(NULL) % stime));
-
-        t2 = time(NULL);
-        dt = t2 - t1;
-		printf("Wakeup dt=%d\n", dt);
-        if (dt < -60*60 || dt > 60*60) {
-            t1 = t2;
-        }else if (dt > 0) {
-            arm_job(t1, t2);
-            run_jobs();
-            sleep(5);
-            if (check_running_jobs() > 0)
-					stime = 10;
-				else
-					stime = 60;
-            t1 = t2;
-        }
-    }
-}
 int main(int argc, char *argv[]) {
-    signal(SIGINT, sig_handler);
-    pthread_t th_crond;
-    pthread_create(&th_crond, NULL, crond, NULL); 
-    pthread_detach(th_crond);
 
-    thid=cron_callback_register("* * * * *","task1",func, "aaa");
-    thid=cron_callback_register("*/2 * * * *","task2",func2, "bbb");
+
+    signal(SIGINT, sig_handler);
+    cron_task_register("*/30 * * * * ?","task1",func, "aaa",2);
+    cron_task_register("*/6 * * * * *","task2",func2, "bbb1",2);
+	//cron_task_register("*/1 * * * * *","task2",func2, "bbb2",2);
+	//cron_task_register("*/1 * * * * *","task2",func2, "bbb3",2);
+	//cron_task_register("*/1 * * * * *","task2",func2, "bbb4",2);
+    cron_run();
     while(1);
 	return EXIT_SUCCESS;
 }
