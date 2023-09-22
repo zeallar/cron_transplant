@@ -1,6 +1,5 @@
 #ifndef CRONTASKS_H
 #define CRONTASKS_H
-#include <setjmp.h>
 
 typedef void    (CronCallback) (unsigned int clientreg,
                                          void *clientarg);
@@ -24,26 +23,18 @@ typedef struct cron_task {
         struct cron_task *next;
     }cron_task_t;
 
-
-
 unsigned int 
 cron_task_register(char* when,char* task_name,
                     CronCallback * thecallback, void *clientarg
                     ,unsigned long timeout);
 void cron_task_unregister(unsigned int clientreg);
-
+void cron_task_unregister_all(void);
 int run_job(void   * param);
-
 void cron_run();
-
 void* crond();
 void sighandler(int signum);
 void prev_stamp(cron_task_t* task);
-
 int  arm_jobs(void);
-
-void cron_task_unregister_all(void);
-
 void updateNextTrigger(cron_task_t* task);
 /*timeout experiment*/
 static void cron_stop_timer() ;

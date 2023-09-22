@@ -69,7 +69,7 @@ cron_task_register(char* when,char* task_name,
 
 	*s = CRON_MALLOC_STRUCT(cron_task);
 	if (*s == NULL) {
-		return 0;
+		return -1;
 	}
 	(*s)->schedule = when;
 	(*s)->clientarg = clientarg;
@@ -83,7 +83,7 @@ cron_task_register(char* when,char* task_name,
 	cron_parse_expr((*s)->schedule, expr_s, &err);
 	 if (err) {
 		perror("error parsing cron expression:");
-		return 1;
+		return -1;
 	}
 	(*s)->expr=expr_s;
 	(*s)->next = NULL;
@@ -106,8 +106,6 @@ int  arm_jobs(void){
 			nJobs+=1;
 			if (sigsetjmp(invoke_env, SIGALRM)) {
 				goto jump;
-			}else{
-				printf("sigsetjmp register\n");
 			}
 			cron_set_timer(sa_ptr_global->timeout,sa_ptr_global);
 			run_job(sa_ptr_global);
@@ -125,7 +123,7 @@ int  arm_jobs(void){
 void sighandler(int signum)
 {
 	if(signum==SIGALRM){
-		printf("\n---");
+		//printf("\n---");
 		if(cron_timer.interval>0){
 			cron_timer.interval--;
 			if(!cron_timer.interval)
@@ -137,7 +135,6 @@ void sighandler(int signum)
 }
 void timeout_handler(cron_task_t *s){
 	if(s){
-		printf("timeout: thread(%lx) call sig_handler\n", pthread_self(),cron_timer.interval);
 		printf("%s timeout,todo something\n",s->job_name);
 		s->timeout_record=time(NULL);//record timeout time 
 		siglongjmp(invoke_env, 1);//goto next task;
@@ -151,9 +148,7 @@ void* crond(){
 	
 	for (;;) {
 		sleep(1);
-		printf("wakeup\n");
-		fflush(stdout);
-		
+		//printf("wakeup\n");
 		arm_jobs();
 	}
 }
@@ -188,6 +183,7 @@ int run_job(void   * param)
 	if(s->cl_Pid==JOB_ARMED)
 	{
 		s->cl_Pid=JOB_NONE;
+		//printf("next triggertime=%s\n",ctime(&(s->nextTrigger)));
 		(*((s)->thecallback)) ((s)->clientreg, (s)->clientarg);
 		prev_stamp(s);
 		updateNextTrigger(s);
