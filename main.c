@@ -78,7 +78,6 @@ int main(int argc, char *argv[]) {
 	sigset_t set;
 	int s;
 	sigemptyset(&set);
-	sigaddset(&set, SIGUSR1);
 	sigaddset(&set, SIGALRM);
 	s = pthread_sigmask(SIG_SETMASK, &set, NULL);
 	if (s != 0)
