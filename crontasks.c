@@ -12,21 +12,54 @@
 #include "ccronexpr.h"
 #include "crontasks.h"
 
-static unsigned int regnum = 1;
-static struct cron_task *the_tasks = NULL;
-pthread_t th_crond;
-
-static struct itimerval one_timer;
+/*task status*/
+#define JOB_NONE        0
+#define JOB_ARMED       -1
+#define JOB_WAITING     -2
+#define CRON_MALLOC_STRUCT(s)   (struct s *) calloc(1, sizeof(struct s))
+/*task struct*/
+typedef struct cron_task {
+        char*            schedule;/*执行时间，cron表达式*/
+        char*             job_name;/*任务名称*/   
+        unsigned int    clientreg;/*任务唯一注册id*/
+        void           *clientarg;/*任务回调函数参数*/
+        CronCallback *thecallback;/*回调函数*/
+        struct cron_expr*    expr;/*解析后的cron表达式*/
+		time_t 		  nextTrigger;
+        int		           cl_Pid;/* running pid, 0, or armed (-1), or waiting (-2) */
+        time_t 		  cl_NotUntil;/*最后运行时间*/
+		unsigned long 	  timeout;
+		time_t 	   timeout_record;/*任务执行超时时间*/
+        struct cron_task *next;
+    }cron_task_t;
+/*timer struct*/
 struct timers
 {
     int interval; //定时时间
     void(*handler)(cron_task_t *s); //处理函数
     cron_task_t *data;//参数
 };
-
+/*corn functions*/
+int run_job(void   * param);
+void* crond();
+void sighandler(int signum);
+void prev_stamp(cron_task_t* task);
+int  arm_jobs(void);
+void updateNextTrigger(cron_task_t* task);
+/*timeout functions*/
+static void cron_stop_timer() ;
+static int cron_set_timer(unsigned long timeout,cron_task_t* s);
+void timeout_handler(cron_task_t *s);
+void 
+my_signal(int signo, void *func);
+/*cron variable*/
+static unsigned int regnum = 1;
+static struct cron_task *the_tasks = NULL;
+pthread_t th_crond;
+/*timer variable*/
+static struct itimerval one_timer;
 static struct timers cron_timer;
 sigjmp_buf invoke_env;
-
 
 void
 cron_task_unregister(unsigned int clientreg){

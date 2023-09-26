@@ -2,7 +2,7 @@
 Author:zhouBL
 Version:
 Description:cron lib
-Others:测试
+Others:add annotations
 created date:2023/9/9 2:32 下午
 modified date:2023/9/21 4:31 下午
 *************************************************/
@@ -46,6 +46,8 @@ int main(int argc, char *argv[]) {
     reID=cron_task_register("*/24 * * * * ?","task1",func, "aaa",2);
     reID=cron_task_register("*/6 * * * * *","task2",func2, "bbb",2);
 	reID=cron_task_register("*/12 * * * * *","task3",func3, "ccc",2);
+	reID=cron_task_register("*/8 * * * * *","task4",func2, "ddd",2);
+	
 	
 	reID=cron_task_register("0 0/3 * * * ?","task4",func3, "heartbeat",2);
 	reID=cron_task_register("0 0/5 * * * ?","task5",func3, "gwstatus",2);
